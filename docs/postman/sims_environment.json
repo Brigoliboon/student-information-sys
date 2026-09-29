@@ -1,0 +1,15 @@
+{
+  "id": "sims-local-env",
+  "name": "SIMS Local",
+  "values": [
+    { "key": "base_url", "value": "http://localhost:3000", "enabled": true },
+    { "key": "access_token", "value": "", "enabled": true },
+    { "key": "student_id", "value": "", "enabled": true },
+    { "key": "program_id", "value": "", "enabled": true },
+    { "key": "course_id", "value": "", "enabled": true },
+    { "key": "term_id", "value": "", "enabled": true },
+    { "key": "offering_id", "value": "", "enabled": true },
+    { "key": "enrollment_id", "value": "", "enabled": true },
+    { "key": "grade_id", "value": "", "enabled": true }
+  ]
+}

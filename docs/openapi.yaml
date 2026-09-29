@@ -1,0 +1,613 @@
+openapi: 3.0.3
+info:
+  title: SIMS API
+  description: Student Information Management REST API (backend-only, base path /api/v1).
+  version: 1.0.0
+servers:
+  - url: http://localhost:3000
+security:
+  - bearerAuth: []
+paths:
+  /api/v1/auth/login:
+    post:
+      summary: Login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, example: admin@example.edu }
+                password: { type: string, example: Admin123! }
+      responses:
+        '201':
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Success'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          session:
+                            type: object
+                            properties:
+                              access_token: { type: string }
+                              refresh_token: { type: string }
+                              expires_in: { type: integer }
+                              token_type: { type: string }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/v1/auth/logout:
+    post:
+      summary: Logout (invalidates token)
+      responses:
+        '200': { description: Signed out }
+  /api/v1/auth/me:
+    get:
+      summary: Current user
+      responses:
+        '200': { description: Current profile }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/v1/users:
+    get:
+      summary: List users (admin)
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+        - $ref: '#/components/parameters/Search'
+      responses:
+        '200': { description: Paged users }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      summary: Create user profile (admin; auth account must exist first)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UserInput' }
+      responses:
+        '201': { description: Created }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Validation' }
+  /api/v1/users/{id}:
+    get:
+      summary: Get user (admin)
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200': { description: User }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      summary: Update user (admin)
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UserInput' }
+      responses:
+        '200': { description: Updated }
+    delete:
+      summary: Delete user (admin)
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '204': { description: Deleted }
+  /api/v1/students:
+    get:
+      summary: List students (search/filter/sort/paginate)
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+        - $ref: '#/components/parameters/Search'
+        - $ref: '#/components/parameters/Sort'
+        - name: program_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: year_level
+          in: query
+          schema: { type: integer }
+        - name: status
+          in: query
+          schema: { type: string, enum: [active, inactive, graduated, suspended, dropped] }
+      responses:
+        '200': { description: Paged students }
+    post:
+      summary: Create student (staff)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/StudentInput' }
+      responses:
+        '201': { description: Created }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Validation' }
+  /api/v1/students/{id}:
+    get:
+      summary: Get student (staff any; student own only)
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200': { description: Student }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      summary: Replace student (staff)
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/StudentInput' }
+      responses:
+        '200': { description: Updated }
+    patch:
+      summary: Update student (staff)
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/StudentInput' }
+      responses:
+        '200': { description: Updated }
+    delete:
+      summary: Delete student (staff)
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '204': { description: Deleted }
+  /api/v1/students/{id}/enrollments:
+    get:
+      summary: Enrollments of a student
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200': { description: Enrollment list }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/v1/students/{id}/grades:
+    get:
+      summary: Grades of a student
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200': { description: Grade list }
+  /api/v1/students/{id}/academic-record:
+    get:
+      summary: Academic record grouped by term
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200': { description: Record }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/programs:
+    get:
+      summary: List programs
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+        - $ref: '#/components/parameters/Search'
+      responses:
+        '200': { description: Paged programs }
+    post:
+      summary: Create program (staff)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code, name]
+              properties:
+                code: { type: string, example: BSCS }
+                name: { type: string }
+                description: { type: string }
+                status: { type: string, enum: [active, inactive] }
+      responses:
+        '201': { description: Created }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/programs/{id}:
+    get:
+      summary: Get program
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200': { description: Program }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      summary: Replace program (staff)
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200': { description: Updated }
+    patch:
+      summary: Update program (staff)
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200': { description: Updated }
+    delete:
+      summary: Delete program (staff)
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '204': { description: Deleted }
+  /api/v1/courses:
+    get:
+      summary: List courses
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+        - $ref: '#/components/parameters/Search'
+      responses:
+        '200': { description: Paged courses }
+    post:
+      summary: Create course (staff)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [course_code, title]
+              properties:
+                course_code: { type: string, example: CS101 }
+                title: { type: string }
+                units: { type: number, example: 3 }
+                description: { type: string }
+                status: { type: string, enum: [active, inactive] }
+      responses:
+        '201': { description: Created }
+  /api/v1/courses/{id}:
+    get:
+      summary: Get course
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200': { description: Course }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      summary: Replace course (staff)
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200': { description: Updated }
+    patch:
+      summary: Update course (staff)
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200': { description: Updated }
+    delete:
+      summary: Delete course (staff)
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '204': { description: Deleted }
+  /api/v1/academic-terms:
+    get:
+      summary: List academic terms
+      responses:
+        '200': { description: Paged terms }
+    post:
+      summary: Create term (staff)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [school_year, semester]
+              properties:
+                school_year: { type: string, example: 2025-2026 }
+                semester: { type: string, enum: ['1st', '2nd', summer] }
+                start_date: { type: string, format: date }
+                end_date: { type: string, format: date }
+                status: { type: string, enum: [upcoming, ongoing, closed] }
+      responses:
+        '201': { description: Created }
+  /api/v1/academic-terms/{id}:
+    get:
+      summary: Get term
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200': { description: Term }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      summary: Replace term (staff)
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200': { description: Updated }
+    patch:
+      summary: Update term (staff)
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200': { description: Updated }
+    delete:
+      summary: Delete term (staff)
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '204': { description: Deleted }
+  /api/v1/course-offerings:
+    get:
+      summary: List offerings
+      responses:
+        '200': { description: Paged offerings }
+    post:
+      summary: Create offering (staff)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [course_id, academic_term_id, section]
+              properties:
+                course_id: { type: string, format: uuid }
+                academic_term_id: { type: string, format: uuid }
+                instructor_id: { type: string, format: uuid }
+                section: { type: string, example: SEC-A }
+                schedule: { type: string }
+                capacity: { type: integer, example: 40 }
+                status: { type: string, enum: [open, closed, cancelled] }
+      responses:
+        '201': { description: Created }
+        '422': { $ref: '#/components/responses/Validation' }
+  /api/v1/course-offerings/{id}:
+    get:
+      summary: Get offering
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200': { description: Offering }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      summary: Replace offering (staff)
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200': { description: Updated }
+    patch:
+      summary: Update offering (staff)
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200': { description: Updated }
+    delete:
+      summary: Delete offering (staff)
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '204': { description: Deleted }
+  /api/v1/course-offerings/{id}/students:
+    get:
+      summary: Students in an offering
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200': { description: Enrollment list with students }
+  /api/v1/enrollments:
+    get:
+      summary: List enrollments
+      responses:
+        '200': { description: Paged enrollments }
+    post:
+      summary: Enroll a student (staff)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [student_id, course_offering_id]
+              properties:
+                student_id: { type: string, format: uuid }
+                course_offering_id: { type: string, format: uuid }
+                status: { type: string, enum: [enrolled, dropped, withdrawn, completed] }
+      responses:
+        '201': { description: Created }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Validation' }
+  /api/v1/enrollments/{id}:
+    get:
+      summary: Get enrollment
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200': { description: Enrollment }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      summary: Update enrollment status (staff)
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status: { type: string, enum: [enrolled, dropped, withdrawn, completed] }
+      responses:
+        '200': { description: Updated }
+    delete:
+      summary: Delete enrollment (staff)
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '204': { description: Deleted }
+  /api/v1/grades:
+    get:
+      summary: List grades (student sees own only)
+      parameters:
+        - name: enrollment_id
+          in: query
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Grade list }
+    post:
+      summary: Record grade (staff; instructor own offerings only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [enrollment_id]
+              properties:
+                enrollment_id: { type: string, format: uuid }
+                grade_value: { type: number, example: 1.5 }
+                remarks: { type: string, enum: [passed, failed, incomplete, dropped, withdrawn, no_grade] }
+      responses:
+        '201': { description: Created }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/grades/{id}:
+    get:
+      summary: Get grade
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200': { description: Grade }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      summary: Replace grade (authorized roles)
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200': { description: Updated }
+    patch:
+      summary: Update grade (authorized roles)
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200': { description: Updated }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema: { type: string }
+    Page:
+      name: page
+      in: query
+      schema: { type: integer, default: 1 }
+    PerPage:
+      name: per_page
+      in: query
+      schema: { type: integer, default: 15 }
+    Search:
+      name: search
+      in: query
+      schema: { type: string }
+    Sort:
+      name: sort
+      in: query
+      description: 'field:asc|desc, comma-separated. Example: last_name:asc'
+      schema: { type: string }
+  schemas:
+    Success:
+      type: object
+      required: [success, message]
+      properties:
+        success: { type: boolean, example: true }
+        message: { type: string }
+    Error:
+      type: object
+      required: [success, message]
+      properties:
+        success: { type: boolean, example: false }
+        message: { type: string }
+        errors: { type: array, items: { type: object } }
+    UserInput:
+      type: object
+      required: [id, email, role]
+      properties:
+        id: { type: string, format: uuid, description: auth.users id }
+        email: { type: string }
+        display_name: { type: string }
+        role: { type: string, enum: [administrator, registrar, instructor, student] }
+        status: { type: string, enum: [active, inactive, suspended] }
+        student_id: { type: string, format: uuid, nullable: true }
+    StudentInput:
+      type: object
+      required: [student_number, first_name, last_name]
+      properties:
+        student_number: { type: string, example: 2024-00001 }
+        first_name: { type: string }
+        last_name: { type: string }
+        middle_name: { type: string, nullable: true }
+        email: { type: string, nullable: true }
+        program_id: { type: string, format: uuid, nullable: true }
+        year_level: { type: integer, minimum: 1, maximum: 6, nullable: true }
+        status: { type: string, enum: [active, inactive, graduated, suspended, dropped] }
+        contact_number: { type: string, nullable: true }
+        address: { type: string, nullable: true }
+  responses:
+    Unauthorized:
+      description: Missing or invalid auth
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example: { success: false, message: Unauthorized, errors: [] }
+    Forbidden:
+      description: Authenticated but not allowed
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example: { success: false, message: Forbidden, errors: [] }
+    NotFound:
+      description: Record not found
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example: { success: false, message: 'Student not found', errors: [] }
+    Conflict:
+      description: Duplicate record
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example: { success: false, message: 'Duplicate student number', errors: [] }
+    Validation:
+      description: Validation failed
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example: { success: false, message: 'Validation failed', errors: [{ message: 'email must be a valid email address' }] }

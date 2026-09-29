@@ -1,0 +1,298 @@
+{
+  "info": {
+    "name": "SIMS API",
+    "description": "Student Information Management REST API (backend-only). Import with sims_environment.json. Login first: Auth/Login saves access_token to the environment.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:3000" },
+    { "key": "student_id", "value": "" },
+    { "key": "program_id", "value": "" },
+    { "key": "course_id", "value": "" },
+    { "key": "term_id", "value": "" },
+    { "key": "offering_id", "value": "" },
+    { "key": "enrollment_id", "value": "" },
+    { "key": "grade_id", "value": "" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }]
+  },
+  "event": [
+    {
+      "listen": "test",
+      "script": {
+        "exec": [
+          "pm.test('success flag is boolean', () => pm.expect(pm.response.json().success).to.be.a('boolean'));"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login (success)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/auth/login",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"email\": \"admin@example.edu\", \"password\": \"Admin123!\"}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('201 created', () => pm.response.to.have.status(201));",
+                  "const j = pm.response.json();",
+                  "pm.environment.set('access_token', j.data.session.access_token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login (invalid password -> 401)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/auth/login",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"email\": \"admin@example.edu\", \"password\": \"wrong\"}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": ["pm.test('401 unauthorized', () => pm.response.to.have.status(401));"] }
+            }
+          ]
+        },
+        {
+          "name": "Me (current user)",
+          "request": { "method": "GET", "url": "{{base_url}}/api/v1/auth/me" },
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": ["pm.test('200 ok', () => pm.response.to.have.status(200));"] }
+            }
+          ]
+        },
+        {
+          "name": "Logout",
+          "request": { "method": "POST", "url": "{{base_url}}/api/v1/auth/logout" },
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": ["pm.test('200 ok', () => pm.response.to.have.status(200));"] }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Users (admin only)",
+      "item": [
+        {
+          "name": "List users",
+          "request": { "method": "GET", "url": "{{base_url}}/api/v1/users?page=1&per_page=15" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('200 ok', () => pm.response.to.have.status(200));"] } }]
+        },
+        {
+          "name": "List users as student (forbidden -> 403)",
+          "request": { "method": "GET", "url": "{{base_url}}/api/v1/users" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('403 forbidden', () => pm.response.to.have.status(403));", "pm.test('no password hash leaked', () => { const t = pm.response.text(); pm.expect(t).to.not.include('password'); });"] } }]
+        }
+      ]
+    },
+    {
+      "name": "Students",
+      "item": [
+        {
+          "name": "Create student (valid)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/students",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"student_number\": \"2024-00001\", \"first_name\": \"Demo\", \"last_name\": \"Learner\", \"email\": \"demo.learner@example.edu\", \"year_level\": 1, \"status\": \"active\"}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('201 created', () => pm.response.to.have.status(201));", "pm.environment.set('student_id', pm.response.json().data.id);"] } }]
+        },
+        {
+          "name": "Create student (duplicate -> 409)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/students",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"student_number\": \"2024-00001\", \"first_name\": \"Dupe\", \"last_name\": \"Test\"}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('409 conflict', () => pm.response.to.have.status(409));"] } }]
+        },
+        {
+          "name": "Create student (invalid email -> 422)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/students",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"student_number\": \"2024-00002\", \"first_name\": \"Bad\", \"last_name\": \"Email\", \"email\": \"not-an-email\"}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('422 validation', () => pm.response.to.have.status(422));"] } }]
+        },
+        {
+          "name": "Get student",
+          "request": { "method": "GET", "url": "{{base_url}}/api/v1/students/{{student_id}}" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('200 ok', () => pm.response.to.have.status(200));"] } }]
+        },
+        {
+          "name": "Get student (not found -> 404)",
+          "request": { "method": "GET", "url": "{{base_url}}/api/v1/students/00000000-0000-0000-0000-000000000000" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('404 not found', () => pm.response.to.have.status(404));"] } }]
+        },
+        {
+          "name": "Update student",
+          "request": {
+            "method": "PATCH",
+            "url": "{{base_url}}/api/v1/students/{{student_id}}",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"year_level\": 2}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('200 ok', () => pm.response.to.have.status(200));"] } }]
+        },
+        {
+          "name": "Search + filter + sort + paginate",
+          "request": { "method": "GET", "url": "{{base_url}}/api/v1/students?search=demo&status=active&sort=last_name:asc&page=1&per_page=5" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('200 ok', () => pm.response.to.have.status(200));", "pm.test('pagination meta present', () => { const j = pm.response.json(); pm.expect(j.meta).to.have.keys(['page','per_page','total','last_page']); });"] } }]
+        }
+      ]
+    },
+    {
+      "name": "Programs",
+      "item": [
+        {
+          "name": "Create program",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/programs",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"code\": \"BSACT\", \"name\": \"BS Accountancy\", \"status\": \"active\"}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('201 created', () => pm.response.to.have.status(201));", "pm.environment.set('program_id', pm.response.json().data.id);"] } }]
+        },
+        { "name": "List programs", "request": { "method": "GET", "url": "{{base_url}}/api/v1/programs" } },
+        { "name": "Get program", "request": { "method": "GET", "url": "{{base_url}}/api/v1/programs/{{program_id}}" } }
+      ]
+    },
+    {
+      "name": "Courses",
+      "item": [
+        {
+          "name": "Create course",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/courses",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"course_code\": \"CS199\", \"title\": \"Demo Course\", \"units\": 3}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('201 created', () => pm.response.to.have.status(201));", "pm.environment.set('course_id', pm.response.json().data.id);"] } }]
+        },
+        { "name": "List courses", "request": { "method": "GET", "url": "{{base_url}}/api/v1/courses?search=CS&sort=course_code:asc" } }
+      ]
+    },
+    {
+      "name": "Academic Terms",
+      "item": [
+        {
+          "name": "Create term",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/academic-terms",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"school_year\": \"2026-2027\", \"semester\": \"1st\", \"status\": \"upcoming\"}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('201 created', () => pm.response.to.have.status(201));", "pm.environment.set('term_id', pm.response.json().data.id);"] } }]
+        },
+        { "name": "List terms", "request": { "method": "GET", "url": "{{base_url}}/api/v1/academic-terms" } }
+      ]
+    },
+    {
+      "name": "Course Offerings",
+      "item": [
+        {
+          "name": "Create offering",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/course-offerings",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"course_id\": \"{{course_id}}\", \"academic_term_id\": \"{{term_id}}\", \"section\": \"SEC-Z\", \"capacity\": 40}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('201 created', () => pm.response.to.have.status(201));", "pm.environment.set('offering_id', pm.response.json().data.id);"] } }]
+        },
+        { "name": "List offerings", "request": { "method": "GET", "url": "{{base_url}}/api/v1/course-offerings?status=open" } },
+        { "name": "Offering students", "request": { "method": "GET", "url": "{{base_url}}/api/v1/course-offerings/{{offering_id}}/students" } }
+      ]
+    },
+    {
+      "name": "Enrollments",
+      "item": [
+        {
+          "name": "Enroll student (valid)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/enrollments",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"student_id\": \"{{student_id}}\", \"course_offering_id\": \"{{offering_id}}\"}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('201 created', () => pm.response.to.have.status(201));", "pm.environment.set('enrollment_id', pm.response.json().data.id);"] } }]
+        },
+        {
+          "name": "Enroll duplicate (409)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/enrollments",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"student_id\": \"{{student_id}}\", \"course_offering_id\": \"{{offering_id}}\"}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('409 conflict', () => pm.response.to.have.status(409));"] } }]
+        },
+        {
+          "name": "Enroll invalid refs (422)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/enrollments",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"student_id\": \"00000000-0000-0000-0000-000000000000\", \"course_offering_id\": \"{{offering_id}}\"}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('422 validation', () => pm.response.to.have.status(422));"] } }]
+        },
+        { "name": "Student enrollments", "request": { "method": "GET", "url": "{{base_url}}/api/v1/students/{{student_id}}/enrollments" } }
+      ]
+    },
+    {
+      "name": "Grades + Academic Record",
+      "item": [
+        {
+          "name": "Record grade (valid)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/grades",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"enrollment_id\": \"{{enrollment_id}}\", \"grade_value\": 1.5, \"remarks\": \"passed\"}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('201 created', () => pm.response.to.have.status(201));", "pm.environment.set('grade_id', pm.response.json().data.id);"] } }]
+        },
+        {
+          "name": "Update grade",
+          "request": {
+            "method": "PATCH",
+            "url": "{{base_url}}/api/v1/grades/{{grade_id}}",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"grade_value\": 1.25}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('200 ok', () => pm.response.to.have.status(200));"] } }]
+        },
+        { "name": "Student grades", "request": { "method": "GET", "url": "{{base_url}}/api/v1/students/{{student_id}}/grades" } },
+        { "name": "Academic record", "request": { "method": "GET", "url": "{{base_url}}/api/v1/students/{{student_id}}/academic-record" } }
+      ]
+    }
+  ]
+}
