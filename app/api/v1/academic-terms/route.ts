@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 export const GET = async (req: NextRequest) => {
   try {
     const caller = await require_user(req);
-    if (!can_list(caller, "terms")) return fail(403, "Forbidden");
+    if (!can_list(caller.profile, "terms")) return fail(403, "Forbidden");
     const { data, error, meta } = await terms_repo().list(parse_list_params(req));
     if (error) return fail(500, "Internal server error");
     return ok(data, "OK", meta);
@@ -23,7 +23,7 @@ export const GET = async (req: NextRequest) => {
 export const POST = async (req: NextRequest) => {
   try {
     const caller = await require_user(req);
-    if (!can_write(caller, "terms")) return fail(403, "Forbidden");
+    if (!can_write(caller.profile, "terms")) return fail(403, "Forbidden");
     const body = await req.json().catch(() => null);
     if (!body) return fail(400, "Invalid JSON body");
     return created(await create_term(body), "Academic term created");

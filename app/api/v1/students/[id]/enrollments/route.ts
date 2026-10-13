@@ -10,7 +10,7 @@ export const GET = async (req: NextRequest, ctx: { params: Promise<{ id: string 
   try {
     const caller = await require_user(req);
     const { id } = await ctx.params;
-    if (!can_read_student(caller, id)) return fail(403, "Forbidden");
+    if (!can_read_student(caller.profile, id)) return fail(403, "Forbidden");
     const admin = create_admin_client();
     const { data, error } = await admin
       .from("enrollments")

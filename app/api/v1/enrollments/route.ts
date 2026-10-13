@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 export const GET = async (req: NextRequest) => {
   try {
     const caller = await require_user(req);
-    if (!can_list(caller, "enrollments")) return fail(403, "Forbidden");
+    if (!can_list(caller.profile, "enrollments")) return fail(403, "Forbidden");
     const q = parse_list_params(req);
     const admin = create_admin_client();
     let query = admin
@@ -35,7 +35,7 @@ export const GET = async (req: NextRequest) => {
 export const POST = async (req: NextRequest) => {
   try {
     const caller = await require_user(req);
-    if (!can_write(caller, "enrollments")) return fail(403, "Forbidden");
+    if (!can_write(caller.profile, "enrollments")) return fail(403, "Forbidden");
     const body = await req.json().catch(() => null);
     if (!body) return fail(400, "Invalid JSON body");
     return created(await create_enrollment(body), "Enrollment created");

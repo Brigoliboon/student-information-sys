@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 export const GET = async (req: NextRequest, ctx: { params: Promise<{ id: string }> }) => {
   try {
     const caller = await require_user(req);
-    if (!can_list(caller, "enrollments")) return fail(403, "Forbidden");
+    if (!can_list(caller.profile, "enrollments")) return fail(403, "Forbidden");
     const { id } = await ctx.params;
     const admin = create_admin_client();
     const { data, error } = await admin

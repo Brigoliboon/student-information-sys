@@ -17,7 +17,7 @@ const own_enrollment = async (caller_student_id: string | null, enrollment_id: s
 export const GET = async (req: NextRequest, ctx: { params: Promise<{ id: string }> }) => {
   try {
     const caller = await require_user(req);
-    if (!can_list(caller, "enrollments")) return fail(403, "Forbidden");
+    if (!can_list(caller.profile, "enrollments")) return fail(403, "Forbidden");
     const { id } = await ctx.params;
     if (caller.profile.role === "student" && !(await own_enrollment(caller.profile.student_id, id))) {
       return fail(403, "Forbidden");

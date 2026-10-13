@@ -11,7 +11,7 @@ export const GET = async (req: NextRequest, ctx: { params: Promise<{ id: string 
   try {
     const caller = await require_user(req);
     const { id } = await ctx.params;
-    if (!can_read_student(caller, id)) return fail(403, "Forbidden");
+    if (!can_read_student(caller.profile, id)) return fail(403, "Forbidden");
     const { data, error } = await get_student_by_id(id);
     if (error) return fail(500, "Internal server error");
     if (!data) return fail(404, "Student not found");
@@ -24,7 +24,7 @@ export const GET = async (req: NextRequest, ctx: { params: Promise<{ id: string 
 export const PATCH = async (req: NextRequest, ctx: { params: Promise<{ id: string }> }) => {
   try {
     const caller = await require_user(req);
-    if (!can_write(caller, "students")) return fail(403, "Forbidden");
+    if (!can_write(caller.profile, "students")) return fail(403, "Forbidden");
     const { id } = await ctx.params;
     const body = await req.json().catch(() => null);
     if (!body) return fail(400, "Invalid JSON body");
@@ -40,7 +40,7 @@ export const PUT = PATCH;
 export const DELETE = async (req: NextRequest, ctx: { params: Promise<{ id: string }> }) => {
   try {
     const caller = await require_user(req);
-    if (!can_write(caller, "students")) return fail(403, "Forbidden");
+    if (!can_write(caller.profile, "students")) return fail(403, "Forbidden");
     const { id } = await ctx.params;
     const { error } = await delete_student_row(id);
     if (error) return fail(500, "Internal server error");

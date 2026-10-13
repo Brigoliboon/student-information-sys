@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 export const GET = async (req: NextRequest, ctx: { params: Promise<{ id: string }> }) => {
   try {
     const caller = await require_user(req);
-    if (!can_list(caller, "grades")) return fail(403, "Forbidden");
+    if (!can_list(caller.profile, "grades")) return fail(403, "Forbidden");
     const { id } = await ctx.params;
     const admin = create_admin_client();
     const { data, error } = await admin
@@ -32,7 +32,7 @@ export const GET = async (req: NextRequest, ctx: { params: Promise<{ id: string 
 
 const update = async (req: NextRequest, ctx: { params: Promise<{ id: string }> }) => {
   const caller = await require_user(req);
-  if (!can_write(caller, "grades")) return fail(403, "Forbidden");
+  if (!can_write(caller.profile, "grades")) return fail(403, "Forbidden");
   const { id } = await ctx.params;
   const body = await req.json().catch(() => null);
   if (!body) return fail(400, "Invalid JSON body");
